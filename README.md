@@ -1,47 +1,31 @@
-# Customer Churn Intelligence
+# Customer Churn Intelligence System
 
-A practical, end-to-end machine learning project for telecom churn prediction with a retention recommendation layer.
+An end-to-end, production-style **Customer Churn Prediction and Retention Intelligence** project for portfolio/resume use.
 
-The goal of this repository is to model what a small production ML project looks like in practice:
-- clear folder structure
-- modular Python code
-- reproducible training/evaluation pipeline
-- explainability outputs
-- API inference endpoint
-- BI-friendly dataset export
+## 1) Project Overview
+This repository simulates a real industry ML system rather than a notebook-only experiment. It includes:
+- Data ingestion and synthetic telecom churn dataset generation
+- Data cleaning and feature engineering
+- Multi-model training and comparison (Logistic Regression, Random Forest, XGBoost)
+- Evaluation with business-relevant metrics
+- Explainability with SHAP (best-effort execution)
+- Retention strategy recommendation engine
+- Tableau-ready analytics dataset
+- FastAPI prediction service
+- Reproducible pipeline scripts
 
----
-
-## What this project does
-
-Given customer profile + account/service information, the system predicts churn probability and returns a retention action recommendation.
-
-Core capabilities:
-1. Data ingestion / generation (Telco-style dataset)
-2. Cleaning + preprocessing
-3. Feature engineering
-4. Multi-model training + model selection
-5. Evaluation with classification metrics and plots
-6. SHAP-based explainability (best effort)
-7. Retention intelligence rules
-8. Batch-ready scoring export for dashboards
-9. FastAPI prediction service
-
----
-
-## Project layout
-
+## 2) Repository Structure
 ```text
 customer-churn-intelligence
 │
-├── data/
-│   ├── raw/
-│   └── processed/
+├── data
+│   ├── raw
+│   └── processed
 │
-├── notebooks/
+├── notebooks
 │   └── exploratory_analysis.ipynb
 │
-├── src/
+├── src
 │   ├── data_processing.py
 │   ├── feature_engineering.py
 │   ├── train_model.py
@@ -50,112 +34,98 @@ customer-churn-intelligence
 │   ├── pipeline.py
 │   └── utils.py
 │
-├── models/
-├── dashboard/
-│   └── tableau_dataset.csv     # generated after training
+├── models
+│   └── churn_model.pkl            # generated
 │
-├── api/
+├── dashboard
+│   └── tableau_dataset.csv        # generated
+│
+├── api
 │   └── app.py
 │
 ├── requirements.txt
 └── README.md
 ```
 
----
+## 3) Dataset
+The project generates a realistic Telco-style churn dataset with core telecom dimensions:
+- Demographics: gender, senior citizen, partner, dependents
+- Account data: tenure, contract, payment method, paperless billing, monthly/total charges
+- Service usage: internet service, streaming, tech support, device protection, etc.
+- Target: `Churn` (Yes/No)
 
-## Dataset
-
-This project uses a Telco-like churn schema and generates realistic synthetic records if raw data is not already present.
-
-Target:
-- `Churn` (`Yes` / `No`)
-
-Feature groups include:
-- demographics (`gender`, `SeniorCitizen`, `Partner`, `Dependents`)
-- account details (`tenure`, `Contract`, `PaymentMethod`, `PaperlessBilling`)
-- service usage (`InternetService`, `TechSupport`, `DeviceProtection`, streaming features, etc.)
-- billing (`MonthlyCharges`, `TotalCharges`)
-
-Generated files:
+Raw and cleaned datasets are saved to:
 - `data/raw/telco_churn.csv`
 - `data/processed/telco_churn_clean.csv`
 
----
+## 4) Feature Engineering
+Additional intelligence features are created:
+- **CLV proxy** = `tenure * MonthlyCharges`
+- **Service engagement score** = number of services used
+- **Risk indicator** = high monthly charge + short tenure
+- **Contract stability score** = numerical encoding of contract lock-in
+- **Tenure bucket** for dashboard/cohort analysis
 
-## Feature engineering
-
-Implemented engineered features:
-- `CLV_proxy = tenure * MonthlyCharges`
-- `service_engagement_score`
-- `high_charge_short_tenure_risk`
-- `contract_stability_score`
-- `tenure_bucket`
-
-These are used for both model training and downstream reporting.
-
----
-
-## Modeling approach
-
-Candidate models:
-- Logistic Regression
-- Random Forest
-- XGBoost (preferred model when available)
-
-Training flow:
+## 5) Model Training
+Training workflow:
 1. Stratified train/test split
-2. Numeric imputation + scaling
-3. Categorical imputation + one-hot encoding
-4. Cross-validated hyperparameter search (`GridSearchCV`)
-5. Best model selected by ROC-AUC
-6. Persist model bundle to `models/churn_model.pkl`
+2. Preprocessing with imputation, scaling, and one-hot encoding
+3. Candidate models:
+   - Logistic Regression (class weighting)
+   - Random Forest (class weighting)
+   - XGBoost (primary model)
+4. Hyperparameter tuning via `GridSearchCV` and cross-validation
+5. Best model selected by ROC-AUC and persisted in `models/churn_model.pkl`
 
----
-
-## Evaluation
-
-Reported metrics:
+## 6) Model Evaluation
+Metrics generated:
 - Accuracy
 - Precision
 - Recall
-- F1
+- F1-score
 - ROC-AUC
+- Confusion matrix
+- ROC curve
 
-Saved artifacts:
+Why accuracy alone is not enough:
+- Churn datasets are usually imbalanced.
+- A high-accuracy model can still miss many churners (false negatives), which is costly for retention teams.
+- Precision/Recall/F1 and ROC-AUC better measure the trade-off for intervention decisions.
+
+Outputs:
 - `models/evaluation/metrics.json`
 - `models/evaluation/confusion_matrix.png`
 - `models/evaluation/roc_curve.png`
-- `models/evaluation/shap_summary.png` (if SHAP execution succeeds)
+- `models/evaluation/shap_summary.png` (if SHAP runs successfully)
 
-Why not rely on accuracy alone?
-- Churn is often class-imbalanced.
-- A model can look accurate while still missing many true churners.
-- Recall/F1/ROC-AUC better reflect intervention quality for retention use cases.
+## 7) Explainability
+SHAP-based explanations identify key churn drivers such as:
+- Short tenure
+- Month-to-month contracts
+- Higher monthly charges
+- Lack of tech support/device protection
 
----
+## 8) Retention Intelligence Layer
+The recommendation engine transforms churn risk into actions:
+- `prob > 0.7` + month-to-month → discount + annual migration offer
+- `prob > 0.7` + tenure < 6 → onboarding intervention
+- `0.5 < prob <= 0.7` → loyalty bundle intervention
+- otherwise → engagement/upsell strategy
 
-## Retention recommendation engine
+## 9) Prediction Pipeline
+`src/predict.py` provides callable inference:
+- Input: customer feature payload
+- Output:
+  - churn probability
+  - risk level (Low/Medium/High)
+  - recommended retention action
 
-The inference layer converts risk into action.
-
-Example business rules:
-- high risk + month-to-month contract → retention discount + contract migration offer
-- high risk + very low tenure → onboarding/support intervention
-- medium risk → loyalty plan / bundled offer
-- low risk → standard engagement
-
----
-
-## API
-
-FastAPI app: `api/app.py`
-
-Endpoints:
+## 10) API Service
+FastAPI service in `api/app.py`:
 - `GET /health`
 - `POST /predict`
 
 Example response:
-
 ```json
 {
   "churn_probability": 0.82,
@@ -164,56 +134,44 @@ Example response:
 }
 ```
 
----
-
-## Dashboard dataset
-
-After training, `dashboard/tableau_dataset.csv` is generated with fields commonly used in churn dashboards, including:
+## 11) Tableau Dashboard Dataset
+`dashboard/tableau_dataset.csv` includes:
 - churn probability
-- predicted churn
-- tenure and tenure bucket
-- contract type
+- tenure / tenure bucket
 - monthly charges
-- revenue at risk
+- contract type
+- predicted churn
+- revenue_at_risk
 
-Suggested dashboard cuts:
-- churn rate by contract type
-- churn by tenure bucket
-- high-risk segment distribution
-- revenue-at-risk trend and cohorts
+Dashboard design ideas:
+- Churn rate by contract type
+- Churn by tenure bucket
+- High-risk segment map
+- Revenue at risk by segment
+- Retention opportunity funnel
 
----
-
-## How to run
-
-### 1) Install dependencies
-
+## 12) How to Run
+### Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2) Run full pipeline
-
+### Run full pipeline
 ```bash
 python -m src.pipeline
 ```
 
-### 3) Run a local prediction test
-
+### Run prediction script
 ```bash
 python -m src.predict
 ```
 
-### 4) Start API server
-
+### Launch API
 ```bash
 uvicorn api.app:app --host 0.0.0.0 --port 8000
 ```
 
----
-
-## Example API call
-
+### Example API request
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
@@ -240,12 +198,9 @@ curl -X POST http://localhost:8000/predict \
   }'
 ```
 
----
-
-## Next improvements
-
-- MLflow experiment tracking + model registry
-- scheduled retraining job
-- segmentation (clustering) for targeted retention campaigns
-- cohort churn monitoring
-- drift/data-quality checks in scoring pipeline
+## 13) Advanced Enhancements (Roadmap)
+- Scheduled retraining pipeline (cron/Airflow/GitHub Actions)
+- MLflow experiment tracking and model registry
+- Segment discovery via clustering
+- Cohort-based churn survival tracking
+- Feature drift and data quality monitoring
